@@ -35,8 +35,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
         {/* Google AdSense – replace with your Publisher ID */}
-        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3153229824650084"
-     crossorigin="anonymous"></script>
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3153229824650084"
+          crossOrigin="anonymous"
+        />
       </head>
       <body className={`${inter.className} min-h-screen flex flex-col bg-gray-50`}>
         <CookieBanner />
