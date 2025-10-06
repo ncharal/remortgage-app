@@ -538,20 +538,23 @@ export default function RemortgageComparisonApp(): JSX.Element {
           <CardTitle className="text-lg">Balance during fixed term</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-72 w-full">
-            <ResponsiveContainer>
-              <LineChart data={chartData} margin={{ top: 10, right: 20, bottom: 0, left: 0 }}>
-                <XAxis dataKey="month" tickFormatter={(v) => `${v}m`} />
-                <YAxis tickFormatter={(v) => `£${(v / 1000).toFixed(0)}k`} />
-                <RTooltip formatter={(v: any) => currencyFormat(Number(v))} labelFormatter={(l) => `Month ${l}`} />
-                <Legend />
-                {metrics.map((m, idx) => (
-                  <Line key={idx} type="monotone" dataKey={m.name} dot={false} strokeWidth={2} />
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
+  <div className="h-72 w-full">
+    {/* Recharts needs explicit container size */}
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart data={chartData} margin={{ top: 10, right: 20, bottom: 0, left: 0 }}>
+        <XAxis dataKey="month" tickFormatter={(v) => `${v}m`} />
+        <YAxis tickFormatter={(v) => `£${(v / 1000).toFixed(0)}k`} />
+        {/* @ts-expect-error: Recharts type mismatch in Next 14 */}
+        <RTooltip formatter={(v: any) => currencyFormat(Number(v))} labelFormatter={(l) => `Month ${l}`} />
+        <Legend />
+        {metrics.map((m, idx) => (
+          <Line key={idx} type="monotone" dataKey={m.name} dot={false} strokeWidth={2} />
+        ))}
+      </LineChart>
+    </ResponsiveContainer>
+  </div>
+</CardContent>
+
       </Card>
 
       <div className="text-xs text-muted-foreground leading-relaxed">
