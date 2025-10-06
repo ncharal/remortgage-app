@@ -3,7 +3,7 @@
 import React from "react";
 import * as Recharts from "recharts";
 
-// Pull components then cast them to avoid @types/react mismatches
+// Cast Recharts bits to avoid React types mismatch across deps
 const RC = Recharts.ResponsiveContainer as unknown as React.ComponentType<any>;
 const LC = Recharts.LineChart as unknown as React.ComponentType<any>;
 const LN = Recharts.Line as unknown as React.ComponentType<any>;
@@ -25,8 +25,6 @@ export default function BalanceChart({
         <LC data={data} margin={{ top: 10, right: 20, bottom: 0, left: 0 }}>
           <XAx dataKey="month" tickFormatter={(v: number) => `${v}m`} />
           <YAx tickFormatter={(v: number) => `£${(v / 1000).toFixed(0)}k`} />
-          {/* Recharts’ Tooltip types can be incompatible in some setups */}
-          {/* @ts-expect-error */}
           <TT
             formatter={(v: any) => `£${Number(v).toFixed(2)}`}
             labelFormatter={(l: any) => `Month ${l}`}
