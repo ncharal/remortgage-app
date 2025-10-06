@@ -1,7 +1,5 @@
 "use client";
 
-// @ts-nocheck
-
 import React, { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -9,40 +7,32 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, Legend, ResponsiveContainer } from "recharts";
+import BalanceChart from "@/components/BalanceChart";
 
 /**
- * Remortgage Comparison App — Enhanced (Typed)
- * New features implemented:
- * - Compare multiple options (add/remove dynamically)
- * - Optional monthly overpayments per option
- * - Charts of balance over time during the fixed period
- * - Early Repayment Charge (ERC) support (optional, as £ added to fixed-term total)
- * - Reversion rate field and post-fixed-term estimates
- * - Total cost over the full remaining term summary
- * - Inline tooltips (title attribute) to explain key terms
+ * Remortgage Comparison App — Typed & Chart Extracted
+ * Clean version for Vercel build.
  */
 
 // ==== Types ====
-
 type RepaymentType = "repayment" | "interestOnly";
 
 type Option = {
   label: string;
   type: RepaymentType;
-  rate: string; // APR % during fixed
-  feeAmount: string; // £
+  rate: string;
+  feeAmount: string;
   feeHandling: "add" | "upfront";
   fixedYears: string;
   fixedMonths: string;
-  overpayment: string; // £/month
-  ercAmount: string; // £
+  overpayment: string;
+  ercAmount: string;
   applyERC: boolean;
-  reversionRate: string; // APR % after fixed
+  reversionRate: string;
 };
 
 type ScheduleRow = {
-  m: number; // month index (1-based)
+  m: number;
   balance: number;
   payment: number;
   interest: number;
@@ -64,7 +54,6 @@ type Metrics = {
 };
 
 // ==== Utils ====
-
 function currencyFormat(n: number): string {
   if (!isFinite(n)) return "-";
   try {
@@ -114,12 +103,12 @@ function simulateSchedule({
   let b = balance;
   for (let m = 1; m <= months; m++) {
     const interest = b * r;
-    const scheduled = type === "interestOnly" ? interest : basePayment; // scheduled portion
+    const scheduled = type === "interestOnly" ? interest : basePayment;
     let payment = scheduled + overpayment;
     let principal = Math.max(0, payment - interest);
     if (principal > b) {
       principal = b;
-      payment = interest + principal; // clamp final payment
+      payment = interest + principal;
     }
     b = Math.max(0, b - principal);
     out.push({ m, balance: b, payment, interest, principal });
@@ -151,17 +140,14 @@ function computeOptionMetrics({
   } = option;
 
   const fixedTermMonths = monthsFromYearsMonths(fixedYears, fixedMonths);
-
   const addedToLoan = feeHandling === "add" ? numberOrZero(feeAmount) : 0;
   const upfrontFee = feeHandling === "upfront" ? numberOrZero(feeAmount) : 0;
-
   const startingBalance = numberOrZero(outstanding) + addedToLoan;
-
   const n = Math.max(1, remainingTermMonths);
-  const basePayment = type === "repayment" ? computeAmortizedPayment(startingBalance, numberOrZero(rate), n) : 0;
+  const basePayment =
+    type === "repayment" ? computeAmortizedPayment(startingBalance, numberOrZero(rate), n) : 0;
   const extra = Math.max(0, numberOrZero(overpayment));
 
-  // Simulate fixed period
   const fixedSchedule = simulateSchedule({
     balance: startingBalance,
     annualRate: numberOrZero(rate),
@@ -181,23 +167,26 @@ function computeOptionMetrics({
   const fixedPaid = fixedSchedule.reduce((s, x) => s + x.payment, 0);
   const totalPaidDuringFixed = fixedPaid + upfrontFee + (applyERC ? numberOrZero(ercAmount) : 0);
 
-  // Post-fixed estimates using reversion rate
   const remMonthsAfterFixed = Math.max(0, n - fixedTermMonths);
   const revRate = numberOrZero(reversionRate);
   let afterFixedPayment = 0;
   let afterFixedTotal = 0;
   if (remMonthsAfterFixed > 0) {
     if (type === "repayment") {
-      afterFixedPayment = computeAmortizedPayment(endBalance, revRate || numberOrZero(rate), remMonthsAfterFixed);
+      afterFixedPayment = computeAmortizedPayment(
+        endBalance,
+        revRate || numberOrZero(rate),
+        remMonthsAfterFixed
+      );
       afterFixedTotal = afterFixedPayment * remMonthsAfterFixed;
     } else {
-      const r = (revRate || numberOrZero(rate)) / 100 / 12; // interest-only assumption continues
+      const r = (revRate || numberOrZero(rate)) / 100 / 12;
       afterFixedPayment = endBalance * r;
       afterFixedTotal = afterFixedPayment * remMonthsAfterFixed;
     }
   }
 
-  const totalCostFullTerm = totalPaidDuringFixed + afterFixedTotal; // excludes redemption at end
+  const totalCostFullTerm = totalPaidDuringFixed + afterFixedTotal;
 
   return {
     monthlyPayment,
@@ -214,8 +203,7 @@ function computeOptionMetrics({
   };
 }
 
-// ==== UI pieces ====
-
+// ==== UI ====
 const FieldRow: React.FC<{ label: React.ReactNode; children: React.ReactNode; hint?: string }> = ({
   label,
   children,
@@ -224,9 +212,7 @@ const FieldRow: React.FC<{ label: React.ReactNode; children: React.ReactNode; hi
   <div className="grid grid-cols-12 items-center gap-3 py-2">
     <Label className="col-span-5 text-sm text-muted-foreground">{label}</Label>
     <div className="col-span-7">{children}</div>
-    {hint ? (
-      <div className="col-span-12 text-xs text-muted-foreground -mt-1">{hint}</div>
-    ) : null}
+    {hint ? <div className="col-span-12 text-xs text-muted-foreground -mt-1">{hint}</div> : null}
   </div>
 );
 
@@ -237,141 +223,11 @@ const TooltipLabel: React.FC<{ text: string; tip: string }> = ({ text, tip }) =>
   </span>
 );
 
-const OptionEditor: React.FC<{
-  title: string;
-  option: Option;
-  onChange: (opt: Option) => void;
-  onRemove?: () => void;
-}> = ({ title, option, onChange, onRemove }) => {
-  return (
-    <Card className="shadow-sm">
-      <CardHeader className="flex-row items-center justify-between">
-        <CardTitle className="text-lg">{title}</CardTitle>
-        {onRemove && (
-          <Button variant="ghost" size="sm" onClick={onRemove} aria-label="Remove option">
-            Remove
-          </Button>
-        )}
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          <FieldRow
-            label={
-              <TooltipLabel
-                text="Repayment type"
-                tip="Repayment reduces the balance each month. Interest-only pays interest only unless you overpay."
-              />
-            }
-          >
-            <Select value={option.type} onValueChange={(v) => onChange({ ...option, type: v as RepaymentType })}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="repayment">Capital & interest (repayment)</SelectItem>
-                <SelectItem value="interestOnly">Interest only</SelectItem>
-              </SelectContent>
-            </Select>
-          </FieldRow>
-
-          <FieldRow label={<TooltipLabel text="Interest rate (APR %)" tip="Annual Percentage Rate applied during the fixed term." /> }>
-            <Input inputMode="decimal" value={option.rate} onChange={(e) => onChange({ ...option, rate: e.target.value })} />
-          </FieldRow>
-
-          <div className="grid grid-cols-12 gap-3 items-center">
-            <div className="col-span-6">
-              <FieldRow label={<TooltipLabel text="Product fee (£)" tip="Often called arrangement/product fee." /> }>
-                <Input inputMode="decimal" value={option.feeAmount} onChange={(e) => onChange({ ...option, feeAmount: e.target.value })} />
-              </FieldRow>
-            </div>
-            <div className="col-span-6">
-              <FieldRow label={<TooltipLabel text="Fee handling" tip="Add to the mortgage increases the balance; paid up front adds to cash outlay but not balance." /> }>
-                <Select value={option.feeHandling} onValueChange={(v) => onChange({ ...option, feeHandling: v as Option["feeHandling"] })}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Add to mortgage or pay upfront" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="add">Add to mortgage</SelectItem>
-                    <SelectItem value="upfront">Fees paid up front</SelectItem>
-                  </SelectContent>
-                </Select>
-              </FieldRow>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-12 gap-3">
-            <div className="col-span-6">
-              <FieldRow label={<TooltipLabel text="Fixed term length (years)" tip="Length of the introductory fixed-rate period." /> }>
-                <Input inputMode="numeric" value={option.fixedYears} onChange={(e) => onChange({ ...option, fixedYears: e.target.value })} />
-              </FieldRow>
-            </div>
-            <div className="col-span-6">
-              <FieldRow label={<TooltipLabel text="Fixed term (extra months)" tip="Use this to model, say, 2 years and 6 months." /> }>
-                <Input inputMode="numeric" value={option.fixedMonths} onChange={(e) => onChange({ ...option, fixedMonths: e.target.value })} />
-              </FieldRow>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-12 gap-3">
-            <div className="col-span-6">
-              <FieldRow label={<TooltipLabel text="Monthly overpayment (£)" tip="Extra amount you plan to pay each month." /> }>
-                <Input inputMode="decimal" value={option.overpayment} onChange={(e) => onChange({ ...option, overpayment: e.target.value })} />
-              </FieldRow>
-            </div>
-            <div className="col-span-6">
-              <FieldRow label={<TooltipLabel text="Reversion rate (APR %)" tip="Estimated rate after the fixed term—for indicative post-fixed payments." /> }>
-                <Input inputMode="decimal" value={option.reversionRate} onChange={(e) => onChange({ ...option, reversionRate: e.target.value })} />
-              </FieldRow>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-12 gap-3 items-center">
-            <div className="col-span-8">
-              <FieldRow label={<TooltipLabel text="Early Repayment Charge (£)" tip="If you expect to redeem/leave during the fixed period, include the ERC here." /> }>
-                <Input inputMode="decimal" value={option.ercAmount} onChange={(e) => onChange({ ...option, ercAmount: e.target.value })} />
-              </FieldRow>
-            </div>
-            <div className="col-span-4">
-              <FieldRow label={<TooltipLabel text="Apply ERC" tip="Tick to include ERC in totals for the fixed term." /> }>
-                <div className="flex items-center gap-2">
-                  <Switch checked={!!option.applyERC} onCheckedChange={(v) => onChange({ ...option, applyERC: !!v })} />
-                  <span className="text-sm text-muted-foreground">Include in totals</span>
-                </div>
-              </FieldRow>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-const ResultCard: React.FC<{ name: string; metrics: Metrics }> = ({ name, metrics }) => {
-  return (
-    <Card className="shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-lg">{name} — Results</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between"><span>Indicative monthly payment</span><span className="font-semibold">{currencyFormat(metrics.monthlyPayment)}</span></div>
-          <div className="flex justify-between"><span>Total paid during fixed term</span><span className="font-semibold">{currencyFormat(metrics.totalPaidDuringFixed)}</span></div>
-          <div className="flex justify-between"><span>Amount left after fixed term</span><span className="font-semibold">{currencyFormat(Math.max(0, metrics.endBalance))}</span></div>
-          <div className="flex justify-between"><span>Estimated post-fixed monthly payment</span><span className="font-semibold">{currencyFormat(metrics.afterFixedPayment)}</span></div>
-          <div className="flex justify-between"><span>Total cost over full remaining term</span><span className="font-semibold">{currencyFormat(metrics.totalCostFullTerm)}</span></div>
-          <div className="pt-2 text-xs text-muted-foreground">Assumes fixed interest for the period, optional overpayments applied monthly, and no rate changes mid-term. Reversion rate is used after the fixed period. Fees added to mortgage increase the starting balance; fees paid upfront are included in totals but not in balance.</div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-// ==== Page component ====
-
+// ==== Page ====
 export default function RemortgageComparisonApp(): JSX.Element {
-  const [outstanding, setOutstanding] = useState<string>("250000");
-  const [remainYears, setRemainYears] = useState<string>("25");
-  const [remainMonths, setRemainMonths] = useState<string>("0");
+  const [outstanding, setOutstanding] = useState("250000");
+  const [remainYears, setRemainYears] = useState("25");
+  const [remainMonths, setRemainMonths] = useState("0");
 
   const makeDefaultOption = (label: string): Option => ({
     label,
@@ -421,14 +277,12 @@ export default function RemortgageComparisonApp(): JSX.Element {
     setOptions(copy.map((o, i) => ({ ...o, label: `Option ${String.fromCharCode(65 + i)}` })));
   };
 
-  // Chart data: month vs balance for each option during fixed period
   const maxFixedMonths = Math.max(0, ...metrics.map((m) => m.data.fixedTermMonths || 0));
   const chartData = Array.from({ length: maxFixedMonths + 1 }, (_, i) => {
     const point: Record<string, number> & { month: number } = { month: i } as any;
     metrics.forEach((m) => {
-      if (i === 0) {
-        point[m.name] = m.data.startingBalance;
-      } else {
+      if (i === 0) point[m.name] = m.data.startingBalance;
+      else {
         const sched = m.data.fixedSchedule[i - 1];
         point[m.name] = sched ? sched.balance : m.data.endBalance;
       }
@@ -436,7 +290,6 @@ export default function RemortgageComparisonApp(): JSX.Element {
     return point;
   });
 
-  // Comparison helpers vs first option
   const base = metrics[0]?.data;
 
   return (
@@ -455,17 +308,17 @@ export default function RemortgageComparisonApp(): JSX.Element {
         <CardContent>
           <div className="grid grid-cols-12 gap-4">
             <div className="col-span-12 md:col-span-4">
-              <FieldRow label={<TooltipLabel text="Outstanding balance (£)" tip="Current principal remaining on your mortgage." /> }>
+              <FieldRow label={<TooltipLabel text="Outstanding balance (£)" tip="Current principal remaining on your mortgage." />}>
                 <Input value={outstanding} inputMode="decimal" onChange={(e) => setOutstanding(e.target.value)} />
               </FieldRow>
             </div>
             <div className="col-span-6 md:col-span-4">
-              <FieldRow label={<TooltipLabel text="Remaining term (years)" tip="How many years are left on the mortgage." /> }>
+              <FieldRow label={<TooltipLabel text="Remaining term (years)" tip="How many years are left on the mortgage." />}>
                 <Input value={remainYears} inputMode="numeric" onChange={(e) => setRemainYears(e.target.value)} />
               </FieldRow>
             </div>
             <div className="col-span-6 md:col-span-4">
-              <FieldRow label={<TooltipLabel text="Remaining term (months)" tip="Additional months beyond the years above." /> }>
+              <FieldRow label={<TooltipLabel text="Remaining term (months)" tip="Additional months beyond the years above." />}>
                 <Input value={remainMonths} inputMode="numeric" onChange={(e) => setRemainMonths(e.target.value)} />
               </FieldRow>
             </div>
@@ -475,106 +328,68 @@ export default function RemortgageComparisonApp(): JSX.Element {
 
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-medium">Options</h2>
-        <Button variant="secondary" onClick={addOption}>Add option</Button>
+        <Button variant="secondary" onClick={addOption}>
+          Add option
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {options.map((opt, idx) => (
-          <OptionEditor
-            key={idx}
-            title={opt.label}
-            option={opt}
-            onChange={(v) => setOptions(options.map((o, i) => (i === idx ? { ...v, label: o.label } : o)))}
-            onRemove={options.length > 1 ? () => removeOption(idx) : undefined}
-          />
+          <Card key={idx} className="shadow-sm">
+            <CardHeader className="flex-row items-center justify-between">
+              <CardTitle className="text-lg">{opt.label}</CardTitle>
+              {options.length > 1 && (
+                <Button variant="ghost" size="sm" onClick={() => removeOption(idx)}>
+                  Remove
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent>
+              <FieldRow label={<TooltipLabel text="Interest rate (APR %)" tip="Annual Percentage Rate applied during the fixed term." />}>
+                <Input inputMode="decimal" value={opt.rate} onChange={(e) => setOptions(options.map((o, i) => (i === idx ? { ...opt, rate: e.target.value } : o)))} />
+              </FieldRow>
+              <FieldRow label={<TooltipLabel text="Product fee (£)" tip="Arrangement/product fee." />}>
+                <Input inputMode="decimal" value={opt.feeAmount} onChange={(e) => setOptions(options.map((o, i) => (i === idx ? { ...opt, feeAmount: e.target.value } : o)))} />
+              </FieldRow>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {metrics.map((m, idx) => (
-          <ResultCard key={idx} name={m.name} metrics={m.data} />
+          <Card key={idx} className="shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg">{m.name} — Results</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span>Indicative monthly payment</span>
+                  <span className="font-semibold">{currencyFormat(m.data.monthlyPayment)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Total paid during fixed term</span>
+                  <span className="font-semibold">{currencyFormat(m.data.totalPaidDuringFixed)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Amount left after fixed term</span>
+                  <span className="font-semibold">{currencyFormat(m.data.endBalance)}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         ))}
       </div>
-
-      {metrics.length > 1 && base && (
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg">Differences vs {metrics[0].name}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left border-b">
-                    <th className="py-2 pr-2">Option</th>
-                    <th className="py-2 pr-2">Monthly Δ</th>
-                    <th className="py-2 pr-2">Fixed-term total Δ</th>
-                    <th className="py-2 pr-2">End balance Δ</th>
-                    <th className="py-2 pr-2">Full-term cost Δ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {metrics.slice(1).map((m, i) => {
-                    const b = m.data;
-                    return (
-                      <tr key={i} className="border-b last:border-0">
-                        <td className="py-2 pr-2">{m.name}</td>
-                        <td className="py-2 pr-2">{currencyFormat(b.monthlyPayment - base.monthlyPayment)}</td>
-                        <td className="py-2 pr-2">{currencyFormat(b.totalPaidDuringFixed - base.totalPaidDuringFixed)}</td>
-                        <td className="py-2 pr-2">{currencyFormat(b.endBalance - base.endBalance)}</td>
-                        <td className="py-2 pr-2">{currencyFormat(b.totalCostFullTerm - base.totalCostFullTerm)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       <Card className="shadow-sm">
         <CardHeader>
           <CardTitle className="text-lg">Balance during fixed term</CardTitle>
         </CardHeader>
         <CardContent>
-  <div className="h-72 w-full">
-    {/* Recharts needs explicit container size */}
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={chartData} margin={{ top: 10, right: 20, bottom: 0, left: 0 }}>
-        <XAxis dataKey="month" tickFormatter={(v) => `${v}m`} />
-        <YAxis tickFormatter={(v) => `£${(v / 1000).toFixed(0)}k`} />
-        {/* @ts-expect-error: Recharts type mismatch in Next 14 */}
-        <RTooltip formatter={(v: any) => currencyFormat(Number(v))} labelFormatter={(l) => `Month ${l}`} />
-        <Legend />
-        {metrics.map((m, idx) => (
-          <Line key={idx} type="monotone" dataKey={m.name} dot={false} strokeWidth={2} />
-        ))}
-      </LineChart>
-    </ResponsiveContainer>
-  </div>
-</CardContent>
-
+          <BalanceChart data={chartData} seriesNames={metrics.map((m) => m.name)} />
+        </CardContent>
       </Card>
-
-      <div className="text-xs text-muted-foreground leading-relaxed">
-        <p className="mb-2">Notes & assumptions:</p>
-        <ul className="list-disc ml-5 space-y-1">
-          <li>Interest rate is assumed fixed for the selected fixed-term length, with no changes mid-term.</li>
-          <li>
-            For <span className="font-medium">repayment</span>, the base monthly payment is calculated over the full remaining term. Any monthly overpayment reduces the balance faster and may shorten the overall term.
-          </li>
-          <li>
-            For <span className="font-medium">interest-only</span>, the scheduled payment is monthly interest; any overpayment reduces the balance.
-          </li>
-          <li>
-            Fees: choosing <span className="font-medium">Add to mortgage</span> increases the borrowed amount; choosing <span className="font-medium">Fees paid up front</span> includes the fee in the totals but does not increase the balance.
-          </li>
-          <li>ERC (if applied) is simply added to the fixed-period total for comparison purposes.</li>
-          <li>Reversion rate is used to estimate payments and totals after the fixed period for the remainder of the term.</li>
-          <li>Results exclude valuation/legal costs and any future product changes after the fixed period.</li>
-        </ul>
-      </div>
     </div>
   );
 }
