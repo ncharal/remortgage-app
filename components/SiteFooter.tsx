@@ -16,7 +16,7 @@ export default function SiteFooter() {
         </button>
       </p>
       <p className="mt-2 text-xs text-gray-500">
-        © {new Date().getFullYear()} Remortgage App — All rights reserved.
+        © {new Date().getFullYear()} Remortgage Options Calculator — All rights reserved.
       </p>
     </footer>
   );

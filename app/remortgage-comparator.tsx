@@ -528,7 +528,7 @@ export default function RemortgageComparisonApp(): JSX.Element {
   return (
     <div className="mx-auto max-w-6xl p-6 space-y-6">
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Remortgage Options Comparator</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Remortgage Options Calculator</h1>
         <p className="text-sm text-muted-foreground">
           Enter your current mortgage details and configure multiple offers to see payments and balances side by side.
           All figures are indicative.
